@@ -1,1 +1,9 @@
-.venv/\n__pycache__/\n.env
+.venv/
+__pycache__/
+*.pyc
+.env
+.env.*
+.data/
+data/processed/
+artifacts/
+.cache/

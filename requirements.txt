@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+langchain
+langchain-community
+qdrant-client
+opensearch-py
+redis
+prometheus-client
+pydantic-settings
+pandas

@@ -1,0 +1,19 @@
+providers:
+  oss:
+    embeddings: intfloat/e5-large-v2
+  openai:
+    enabled: false
+    model: gpt-4o-mini
+    max_output_tokens: 120
+
+features:
+  paid_explanations: false
+  cache_ttl_seconds: 1800
+
+indexes:
+  qdrant_url: http://localhost:6333
+  opensearch_url: http://localhost:9200
+
+storage:
+  postgres_url: postgresql://postgres:postgres@localhost:5432/postgres
+  redis_host: localhost
