@@ -198,6 +198,16 @@ git commit -m "docs: add README and scaffold"
 git push -u origin main
 ```
 
+
+---
+
+## 💬 About This Project
+This project was developed as part of my self-learning journey to deepen hands-on skills in ML/GenAI and real-world MLOps by building something I’ll actually use every day: a pantry-aware meal planner.
+
+With ChatGPT/Codex as a pair-programming assistant, I designed and implemented this project from scratch—covering Spark ETL for recipes + nutrition, hybrid retrieval (BM25 + embeddings), FastAPI service design, caching/monitoring, and optional GPT-mini explanations for substitutions. The goal is to turn abstract concepts (RAG, ranking, metrics, CI/CD, containerization) into a production-flavored, reusable framework for practical GenAI applications.
+
+> 🧭 This project is part of my ongoing exploration in AI/ML system design and Generative AI engineering—particularly **retrieval**, **personalization**, **observability**, and **cost-aware LLM integration**.
+
 ---
 
 ## 🙏 Acknowledgments
