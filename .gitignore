@@ -22,7 +22,19 @@ ENV/
 *.swp
 
 # ---- Data & Indexes ----
-data/
+data/*
+!data/.gitkeep
+!data/raw/
+data/raw/*
+!data/raw/recipes/
+data/raw/recipes/*
+!data/raw/recipes/recipes_sample.json
+!data/raw/usda/
+data/raw/usda/*
+!data/raw/usda/usda_lookup.csv
+!data/processed/
+data/processed/*
+!data/processed/.gitkeep
 indexes/
 reports/
 artifacts/
