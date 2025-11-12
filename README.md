@@ -1,221 +1,176 @@
-# Pantry-Aware Meal Planner (MLOps RAG)
+# Pantry Meal Planner (MVP)
 
-**Pantry-aware recipe recommendations** with macro targets, substitution tips, and a **deduped grocery list**.  
-Production-flavored stack: **FastAPI**, **Spark ETL**, **LangChain**, **Redis caching**, **Qdrant/OpenSearch**, **Prometheus/Grafana**, optional **OpenAI mini** for top-K explanations.
-
----
-
-## ✨ Why this project?
-Chat assistants can suggest recipes—but they don’t know your **pantry**, **macro goals**, or create a **grocery list** that minimizes new purchases.  
-This app keeps **persistent pantry state**, performs **hybrid search** (BM25 + vectors), scores recipes by **pantry coverage + macros**, and explains **substitutions**.
+FastAPI service that plans meals from your pantry, scores recipes with macro targets, and outputs a deduped grocery list. Everything runs **locally** with seed data, a Spark ETL job, and an in-memory TF-IDF retriever.
 
 ---
 
-## 📌 Features (MVP)
-- **Plan meals from your pantry** with protein/calorie targets
-- **Hybrid retrieval**: BM25 (OpenSearch) + embeddings (Qdrant)
-- **Pantry coverage scoring** + macro fit (protein ↑, kcal ≤ cap)
-- **Substitution tips** (template or OpenAI mini, cached)
-- **Grocery list**: deduped, grouped (produce/meat/pantry)
-- **API-first** (FastAPI) + **metrics** (`/metrics`) + **health** (`/health`)
-- **Dev stack in Docker** (Redis, Qdrant, OpenSearch, Prometheus, Grafana)
-- **CI** (GitHub Actions) and **local ETL** (Spark)
+## 🚦 Project Stages
+
+### Stage 1 — MVP (this branch)
+
+Local-only planner with seed data.
+
+* **Data**: local JSON/CSV → Spark ETL → `data/processed/`
+* **Retrieval**: in-memory TF-IDF (scikit-learn)
+* **Scoring**: pantry-coverage + macro-fit (deterministic)
+* **API**: FastAPI endpoints (`/plan/meals`, `/health`, `/metrics`)
+* **Infra**: none (no LangChain, no AWS, no Redis/Qdrant)
+
+### Stage 2 — Cloud & LLM Add-ons (next branch)
+
+Optional, backwards-compatible features toggled by config:
+
+* **LLM explanations & substitutions**: LangChain + OpenAI/Anthropic/HF
+* **Vector search**: Qdrant or OpenSearch (hybrid BM25 + embeddings)
+* **Storage**: S3 for `raw/` & `processed/` artifacts
+* **Orchestration**: Airflow (MWAA) or ECS scheduled jobs for nightly ETL
+* **Serving**: Dockerized API on ECS Fargate (or EKS), API Gateway/ALB
+* **Observability**: CloudWatch (plus optional Prometheus/Grafana)
+* **CI/CD**: GitHub Actions → ECR → ECS; optional Terraform for IaC
 
 ---
 
-## 🗺️ Architecture (high level)
-```mermaid
-flowchart LR
-  UI[Web UI / API Client]
-  API[FastAPI\n/plan /search /health /metrics]
-  Redis[(Redis Cache)]
-  Qdrant[(Vector Index)]
-  OS[(OpenSearch BM25)]
-  Prom[Prometheus]
-  Graf[Grafana]
-  Spark[Spark ETL: recipes + USDA → features]
+## 🧱 Stack at a Glance (MVP)
 
-  UI --> API
-  API <---> Redis
-  API --> Qdrant
-  API --> OS
-  API --> Prom
-  Graf --> Prom
-  Spark --> Qdrant
-  Spark --> OS
-```
+* **Data:** `data/raw/recipes/recipes_sample.json` (~200 recipes) + `data/raw/usda/usda_lookup.csv`
+* **ETL:** PySpark job normalizes ingredients, enriches missing macros, and writes `data/processed/recipes_enriched.{parquet,json}`
+* **Retrieval:** `scikit-learn` TF-IDF vectors over title + normalized ingredients
+* **Scoring:** Pantry coverage + macro fit (sigmoid on protein, calorie penalty) → deterministic ordering
+* **API:** FastAPI with `/health`, `/metrics`, and `/plan/meals`
+* **Tests:** Pytest smoke tests for planner behavior
 
 ---
 
-## 🚀 Quickstart
+## ⚡ Quickstart (MVP)
 
 ```bash
-# python env
-python -m venv .venv && source .venv/bin/activate
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# bring up dev infra (Redis, Qdrant, OpenSearch, Prometheus, Grafana)
-make up
-
-# run API locally (hot reload)
-make api
-# Open: http://localhost:8000/docs and http://localhost:8000/metrics
-```
-
-**Seed sample data & ETL**
-
-1. Put a small recipe JSON under `data/raw/recipes/` and a simple USDA CSV under `data/raw/usda/`.
-2. Run:
-
-```bash
+# Build processed artifacts (Spark)
 make spark-etl
+
+# Run the API locally
+make api
+# Open http://localhost:8000/docs for OpenAPI + examples
+
+# Developer utilities
+make test      # pytest -q
+make lint      # ruff src tests
+make format    # black src tests
 ```
 
-Outputs go to `data/processed/{recipes,usda_lookup,recipes_enriched}`.
+**Note:** Ensure the seed data exists at:
+
+```
+data/raw/recipes/recipes_sample.json
+data/raw/usda/usda_lookup.csv
+```
 
 ---
 
-## 🔧 Configuration
+## ⚙️ Configuration
 
-* **Configs:** `configs/dev.yaml`
-* **Environment:** `.env` (copy from `.env.example`)
-* **Key flags:**
+All tunables live in `configs/dev.yaml`:
 
-  * `features.paid_explanations`: enable OpenAI mini for short tips
-  * `features.cache_ttl_seconds`: Redis TTL for responses
-  * `indexes.qdrant_url`, `indexes.opensearch_url`
+```yaml
+retrieval:
+  top_k: 50
+scoring:
+  w_coverage: 0.6
+  w_macro: 0.4
+features:
+  cache_ttl_seconds: 0
+  llm_explanations: false     # Phase 2 (off in MVP)
+  remote_vector_search: false # Phase 2 (off in MVP)
+  s3_storage: false           # Phase 2 (off in MVP)
+providers:
+  llm: openai                  # openai|anthropic|hf (Phase 2)
+  vector: tfidf                # tfidf|qdrant|opensearch
+  storage: local               # local|s3
+paths:
+  processed_dir: data/processed
+aws:
+  region: us-west-2
+  s3_bucket: your-bucket
+  s3_prefix: pantry-meal-planner/
+```
 
 ---
 
-## 📚 Data Sources (free/offline)
+## 🌐 API
 
-* **Recipes:** RecipeNLG / OpenRecipes JSON/CSV
+### `POST /plan/meals`
 
-* **Nutrition:** USDA (simplified CSV per 100g: calories, protein_g, fat_g, carbs_g)
-
-> Licensing: keep dataset licenses in mind; attribute sources as required.
-
----
-
-## 🧪 API (MVP)
-
-**POST `/plan/meals`**
+**Request**
 
 ```json
 {
-  "pantry": ["tofu","garlic","pork shoulder"],
-  "targets": {"protein_g_min": 30, "kcal_max": 650},
+  "pantry": ["chicken", "rice", "garlic"],
+  "targets": {"protein_g_min": 25, "kcal_max": 650},
   "days": 3,
   "servings": 2,
   "avoid": ["peanut"],
-  "prefer": ["tofu","kimchi"]
+  "prefer": ["herb"]
 }
 ```
 
-**Response (example)**
+**Response**
 
 ```json
 {
   "recipes": [
     {
-      "id":"r123",
-      "title":"Spicy Tofu Stir-Fry",
-      "time_minutes":20,
-      "macros":{"kcal":520,"protein_g":32},
-      "pantry_coverage":0.8,
-      "why":"Uses tofu/garlic you have and meets protein target.",
-      "missing":["soy sauce"]
+      "id": "recipe-001",
+      "title": "Garlic Chicken Breast Bowl",
+      "ingredients": ["chicken breast", "rice (white, cooked)", "garlic", "olive oil", "..."],
+      "est_kcal": 410,
+      "est_protein_g": 38.0,
+      "score": 0.78
     }
   ],
-  "grocery_list":[{"item":"soy sauce","qty":"200ml","aisle":"pantry"}]
+  "grocery_list": [
+    {"item": "parsley", "aisle": "produce", "qty": null}
+  ]
 }
 ```
 
-Also:
+**Other Endpoints**
 
-* **GET `/health/`** → `{ "ok": true }`
-* **GET `/metrics`** → Prometheus metrics
+* `GET /health` → `{"ok": true}`
+* `GET /metrics` → `{"plans_served": <int>}`
 
----
-
-## 🏗️ Project Structure
-
-```
-src/
-  api/
-    main.py               # FastAPI app (/plan, /health, /metrics)
-    controllers/          # route handlers
-    services/             # rag logic, embedder, cache, explain
-  pipelines/spark/jobs/   # etl_recipes.py, etl_usda.py, features_join.py
-  monitoring/             # prometheus metrics
-infra/docker/             # docker-compose, prometheus, grafana
-configs/                  # dev.yaml
-data/                     # raw + processed
-.github/workflows/        # ci-cd.yml
-```
+OpenAPI docs with examples at `/docs`.
 
 ---
 
-## 🧠 Roadmap
+## 🛠️ Development Notes
 
-* [ ] Ranker: pantry coverage + macro fit + hybrid relevance (RRF)
-* [ ] Redis cache (keyed by pantry+targets, TTL 10–60m)
-* [ ] Qdrant + OpenSearch indexing from ETL outputs
-* [ ] Substitution tips via LangChain (optional OpenAI mini)
-* [ ] Grocery list grouping by aisle & quantities
-* [ ] Simple UI (Streamlit or Next.js PWA)
-* [ ] Grafana dashboard: latency p50/p95/p99, cache hit-rate
-* [ ] CI: pytest, lint, build, (optional) deploy
+* Run ETL first (`make spark-etl`) to generate `data/processed/recipes_enriched.{parquet,json}` before calling the API or tests.
+* Retrieval is fully in-memory; no Redis, Qdrant, or OpenSearch instances are required in MVP.
+* Grocery list builder heuristically assigns aisles (produce/meat/pantry/dairy/bakery) and removes pantry/avoid items.
 
 ---
 
-## 🛡️ Monitoring
+## ✅ Testing
 
-* **Prometheus** scrape: `/metrics`
-* **Grafana** (dev): [http://localhost:3000](http://localhost:3000) (default admin/admin)
-* Metrics:
+`tests/test_plan_api.py` boots the FastAPI app with `TestClient` and validates:
 
-  * `api_latency_seconds` (histogram by route)
-  * `api_requests_total` (counter by route/status)
+1. Happy-path response structure and grocery list
+2. `avoid` tokens excluded from suggestions
+3. Empty pantry still yields five ranked recipes
 
----
-
-## 🧰 Development
-
-```bash
-# make targets
-make up           # start docker services
-make down         # stop & remove volumes
-make api          # run FastAPI locally
-make spark-etl    # run ETL pipeline
-```
-
-**Commit & push**
-
-```bash
-git add .
-git commit -m "docs: add README and scaffold"
-git push -u origin main
-```
-
+Run `make test` after `make spark-etl`.
 
 ---
 
-## 💬 About This Project
-This project was developed as part of my self-learning journey to deepen hands-on skills in ML/GenAI and real-world MLOps by building something I’ll actually use every day: a pantry-aware meal planner.
+## 🗺️ Roadmap
 
-With ChatGPT/Codex as a pair-programming assistant, I designed and implemented this project from scratch—covering Spark ETL for recipes + nutrition, hybrid retrieval (BM25 + embeddings), FastAPI service design, caching/monitoring, and optional GPT-mini explanations for substitutions. The goal is to turn abstract concepts (RAG, ranking, metrics, CI/CD, containerization) into a production-flavored, reusable framework for practical GenAI applications.
-
-> 🧭 This project is part of my ongoing exploration in AI/ML system design and Generative AI engineering—particularly **retrieval**, **personalization**, **observability**, and **cost-aware LLM integration**.
-
----
-
-## 🙏 Acknowledgments
-
-* Recipe datasets: RecipeNLG/OpenRecipes (licenses vary)
-* Nutrition data: USDA FoodData Central (simplified)
-* Infra: Qdrant, OpenSearch, Redis, Prometheus, Grafana
-
-## 🪪 License
-
-This project is licensed under the MIT License.
+* [x] MVP API with TF-IDF retrieval and local ETL
+* [ ] Provider switch: `providers.vector = tfidf|qdrant|opensearch`
+* [ ] S3 storage toggle: `features.s3_storage = true`
+* [ ] LLM explanations toggle: `features.llm_explanations = true`
+* [ ] Dockerize API; GitHub Actions → ECR
+* [ ] ECS Fargate deploy; API Gateway + ALB
+* [ ] MWAA (Airflow) nightly ETL
+* [ ] Observability: CloudWatch metrics/logs
