@@ -1,4 +1,5 @@
 """Deterministic scoring utilities for recipes."""
+
 from __future__ import annotations
 
 import math

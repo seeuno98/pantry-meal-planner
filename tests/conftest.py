@@ -1,4 +1,5 @@
 """Ensure repository root is discoverable for tests."""
+
 from __future__ import annotations
 
 import sys

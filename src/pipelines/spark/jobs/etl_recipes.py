@@ -1,4 +1,5 @@
 """Spark ETL for enriching recipe data with normalized ingredients and macros."""
+
 from __future__ import annotations
 
 import argparse
@@ -33,7 +34,9 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Enrich recipe data for retrieval.")
     parser.add_argument("--recipes", required=True, help="Path to recipes_sample.json")
     parser.add_argument("--usda", required=True, help="Path to USDA lookup CSV")
-    parser.add_argument("--out", required=True, help="Output directory for processed data")
+    parser.add_argument(
+        "--out", required=True, help="Output directory for processed data"
+    )
     return parser.parse_args()
 
 
@@ -80,8 +83,12 @@ def run_etl(recipes_path: str, usda_path: str, output_dir: str) -> None:
             .json(recipes_path)
             .withColumn("id", F.col("id"))
             .withColumn("title", F.coalesce(F.col("title"), F.lit("Untitled Recipe")))
-            .withColumn("ingredients_norm", normalize_ingredients_udf(F.col("ingredients")))
-            .withColumn("primary_ingredient", F.element_at(F.col("ingredients_norm"), 1))
+            .withColumn(
+                "ingredients_norm", normalize_ingredients_udf(F.col("ingredients"))
+            )
+            .withColumn(
+                "primary_ingredient", F.element_at(F.col("ingredients_norm"), 1)
+            )
             .withColumn("est_kcal", F.col("est_kcal").cast(T.IntegerType()))
             .withColumn("est_protein_g", F.col("est_protein_g").cast(T.IntegerType()))
         )
@@ -109,7 +116,8 @@ def run_etl(recipes_path: str, usda_path: str, output_dir: str) -> None:
             .withColumn(
                 "est_kcal",
                 F.coalesce(
-                    F.col("est_kcal"), F.round(F.col("kcal_per_100g")).cast(T.IntegerType())
+                    F.col("est_kcal"),
+                    F.round(F.col("kcal_per_100g")).cast(T.IntegerType()),
                 ),
             )
             .withColumn(
@@ -119,7 +127,9 @@ def run_etl(recipes_path: str, usda_path: str, output_dir: str) -> None:
                     F.round(F.col("protein_g_per_100g")).cast(T.IntegerType()),
                 ),
             )
-            .drop("kcal_per_100g", "protein_g_per_100g", "ingredient", "ingredient_norm")
+            .drop(
+                "kcal_per_100g", "protein_g_per_100g", "ingredient", "ingredient_norm"
+            )
         )
 
         final_df = enriched.select(

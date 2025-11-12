@@ -1,4 +1,5 @@
 """Text normalization helpers shared between ETL and API layers."""
+
 from __future__ import annotations
 
 import re

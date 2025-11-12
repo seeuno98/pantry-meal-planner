@@ -1,4 +1,5 @@
 """FastAPI application for the Pantry Meal Planner MVP."""
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -77,15 +78,21 @@ def plan_meals(request: PlanRequest) -> PlanResponse:
             detail="Processed data missing. Run `make spark-etl` before calling the API.",
         ) from exc
 
-    candidates = retriever.search(query_tokens=query_tokens, top_k=config.retrieval.top_k)
+    candidates = retriever.search(
+        query_tokens=query_tokens, top_k=config.retrieval.top_k
+    )
 
     def _contains_avoids(recipe: dict) -> bool:
         tokens = recipe.get("ingredients_norm", [])
         return any(token in avoid_tokens for token in tokens)
 
-    filtered_candidates = [recipe for recipe in candidates if not _contains_avoids(recipe)]
+    filtered_candidates = [
+        recipe for recipe in candidates if not _contains_avoids(recipe)
+    ]
     if not filtered_candidates:
-        filtered_candidates = [recipe for recipe in retriever.all_recipes if not _contains_avoids(recipe)]
+        filtered_candidates = [
+            recipe for recipe in retriever.all_recipes if not _contains_avoids(recipe)
+        ]
 
     scored = score_recipes(
         candidates=filtered_candidates,

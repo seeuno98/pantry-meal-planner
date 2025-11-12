@@ -1,4 +1,5 @@
 """Configuration loader for the Pantry Meal Planner API."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -49,7 +50,9 @@ def load_config(path: str = "configs/dev.yaml") -> AppConfig:
     scoring = ScoringConfig(**data.get("scoring", {}))
     features = FeatureConfig(**data.get("features", {}))
     paths = PathConfig(**data.get("paths", {}))
-    return AppConfig(retrieval=retrieval, scoring=scoring, features=features, paths=paths)
+    return AppConfig(
+        retrieval=retrieval, scoring=scoring, features=features, paths=paths
+    )
 
 
 config = load_config()

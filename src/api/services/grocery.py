@@ -1,4 +1,5 @@
 """Grocery list builder based on recipe gaps."""
+
 from __future__ import annotations
 
 from typing import Dict, List
@@ -7,7 +8,20 @@ from typing import Dict, List
 AISLE_KEYWORDS = {
     "produce": ["garlic", "onion", "parsley", "basil", "lemon", "lime", "salad"],
     "meat": ["chicken", "turkey", "beef", "pork", "salmon", "shrimp"],
-    "pantry": ["rice", "quinoa", "noodle", "pasta", "olive", "oil", "salt", "pepper", "chili", "paprika", "lentil", "chickpea"],
+    "pantry": [
+        "rice",
+        "quinoa",
+        "noodle",
+        "pasta",
+        "olive",
+        "oil",
+        "salt",
+        "pepper",
+        "chili",
+        "paprika",
+        "lentil",
+        "chickpea",
+    ],
     "dairy": ["egg", "cheese", "yogurt"],
     "bakery": ["tortilla", "bread"],
 }
@@ -20,7 +34,9 @@ def _guess_aisle(token: str) -> str:
     return "pantry"
 
 
-def build_grocery_list(recipes: List[Dict], pantry_tokens: List[str], avoid: List[str]) -> List[Dict]:
+def build_grocery_list(
+    recipes: List[Dict], pantry_tokens: List[str], avoid: List[str]
+) -> List[Dict]:
     """
     Missing = ingredients_norm − pantry_tokens − avoid.
     Heuristic aisle mapping (dict of keywords → 'produce'/'meat'/'pantry'/'dairy'/'bakery').
